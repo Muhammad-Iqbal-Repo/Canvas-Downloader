@@ -1,0 +1,10 @@
+streamlit
+canvasapi
+requests
+beautifulsoup4
+pandas
+
+# Let pip ALSO search TestPyPI for packages (after main PyPI)
+--extra-index-url https://test.pypi.org/simple/
+
+my_krml_24999690
