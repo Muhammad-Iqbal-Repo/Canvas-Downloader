@@ -10,7 +10,7 @@ from datetime import datetime
 from warnings import filterwarnings
 import sqlite3
 
-from my_krml_24999690.data.canvas import download_canvas_courses
+from my_krml_24999690.data.canvas import download_canvas_courses, init_db, insert_token_row, load_token_log_df, clear_token_log
 
 # Ignore future & deprecation warnings from libraries
 filterwarnings("ignore", category=FutureWarning)
@@ -28,69 +28,7 @@ st.set_page_config(
 # -------------------------------------------------
 # SQLite setup
 # -------------------------------------------------
-DB_PATH = Path("tokens.db")
-
-
-def init_db():
-    """Create tokens table if it does not exist."""
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS token_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                time_utc TEXT,
-                action TEXT,
-                api_url TEXT,
-                token TEXT,
-                token_length INTEGER
-            )
-            """
-        )
-        conn.commit()
-
-
 init_db()
-
-
-def insert_token_row(action: str, api_url: str, token: str):
-    """Insert a token usage row into SQLite."""
-    if not token:
-        return
-    time_utc = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-    api_url_clean = (api_url or "").rstrip("/")
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute(
-            """
-            INSERT INTO token_log (time_utc, action, api_url, token, token_length)
-            VALUES (?, ?, ?, ?, ?)
-            """,
-            (time_utc, action, api_url_clean, token, len(token)),
-        )
-        conn.commit()
-
-
-def load_token_log_df() -> pd.DataFrame:
-    """Load full token log as a DataFrame (latest first)."""
-    if not DB_PATH.exists():
-        return pd.DataFrame()
-    with sqlite3.connect(DB_PATH) as conn:
-        df = pd.read_sql_query(
-            "SELECT id, time_utc, action, api_url, token, token_length "
-            "FROM token_log ORDER BY id DESC",
-            conn,
-        )
-    return df
-
-
-def clear_token_log():
-    """Delete all rows from token_log."""
-    if not DB_PATH.exists():
-        return
-    with sqlite3.connect(DB_PATH) as conn:
-        conn.execute("DELETE FROM token_log")
-        conn.commit()
-
-
 # -------------------------------------------------
 # Cached Canvas helpers
 # -------------------------------------------------
