@@ -9,6 +9,7 @@ import pandas as pd
 from datetime import datetime
 from warnings import filterwarnings
 import sqlite3
+from bs4 import BeautifulSoup
 
 from my_krml_24999690.data.canvas import download_canvas_courses, init_db, session_, load_token_log_df, clear_token_log, page_token_history
 
@@ -29,6 +30,57 @@ st.set_page_config(
 # SQLite setup
 # -------------------------------------------------
 init_db()
+
+# Combine HTML
+
+def combine_module_htmls(root_dir: Path):
+    """
+    For each module directory under root_dir, combine all .html files
+    into a single 'combined_pages.html' file inside that module folder.
+    """
+    # Walk all subdirectories (courses / modules)
+    for module_dir in root_dir.rglob("*"):
+        if not module_dir.is_dir():
+            continue
+
+        # Collect HTML files, skip any existing combined file to avoid recursion
+        html_files = sorted(
+            f for f in module_dir.glob("*.html")
+            if f.is_file() and not f.name.endswith("combined_pages.html")
+        )
+
+        if not html_files:
+            continue  # nothing to combine in this folder
+
+        combined_sections = []
+
+        for f in html_files:
+            try:
+                text = f.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                continue
+
+            soup = BeautifulSoup(text, "html.parser")
+            # If there's a <body>, use its contents; otherwise use whole soup
+            body = soup.body or soup
+
+            combined_sections.append(f"<h2>{f.name}</h2>")
+            combined_sections.append(str(body))
+            combined_sections.append("<hr>")
+
+        if not combined_sections:
+            continue
+
+        combined_html = (
+            "<html><head><meta charset='utf-8'>"
+            "<title>Combined module pages</title></head><body>\n"
+            + "\n".join(combined_sections) +
+            "\n</body></html>"
+        )
+
+        out_path = module_dir / "combined_pages.html"
+        out_path.write_text(combined_html, encoding="utf-8")
+
 # -------------------------------------------------
 # Cached Canvas helpers
 # -------------------------------------------------
@@ -137,6 +189,36 @@ def page_downloader():
         allowed_exts.update({".jpg", ".jpeg", ".png", ".gif"})
     if archives_cb:
         allowed_exts.update({".zip", ".rar", ".7z", ".tar", ".gz"})
+        
+    # --- File type filters ---
+    st.markdown("### File types to include")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        docs_cb = st.checkbox(
+            "Documents (pdf, doc, docx, txt, rtf, ppt, pptx)",
+            value=True,
+        )
+        code_cb = st.checkbox(
+            "Notebooks & code (ipynb, py)",
+            value=True,
+        )
+
+    with col2:
+        images_cb = st.checkbox(
+            "Images (jpg, jpeg, png, gif)",
+            value=True,
+        )
+        archives_cb = st.checkbox(
+            "Archives (zip, rar, 7z, tar, gz)",
+            value=False,
+        )
+
+    # ✅ NEW: option to combine HTML files per module
+    combine_html_cb = st.checkbox(
+        "Combine all HTML pages in each module into a single file",
+        value=False,
+    )
 
     # --- Load subjects button ---
     if st.button("🔄 Load subjects"):
@@ -219,6 +301,10 @@ def page_downloader():
             progress_cb=progress_cb,
             allowed_exts=allowed_exts,
         )
+
+        # ✅ Optionally combine HTML files per module
+        if combine_html_cb:
+            combine_module_htmls(tmp_path)
 
         # Create ZIP archive of the temp directory
         zip_base = tmp_path  # base name without extension
