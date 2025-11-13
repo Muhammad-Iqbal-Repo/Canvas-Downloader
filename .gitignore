@@ -6,6 +6,10 @@ __pycache__/
 # C extensions
 *.so
 
+#secrets
+.streamlit/
+*.toml
+
 # db files
 tokens.db
 *.db
