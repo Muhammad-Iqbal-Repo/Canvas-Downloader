@@ -10,7 +10,7 @@ from datetime import datetime
 from warnings import filterwarnings
 import sqlite3
 
-from my_krml_24999690.data.canvas import download_canvas_courses, init_db, insert_token_row, load_token_log_df, clear_token_log
+from my_krml_24999690.data.canvas import download_canvas_courses, init_db, insert_token_row, load_token_log_df, clear_token_log,page_token_history
 
 # Ignore future & deprecation warnings from libraries
 filterwarnings("ignore", category=FutureWarning)
@@ -247,51 +247,6 @@ def page_downloader():
             summary_placeholder.dataframe(df)
 
 
-# -------------------------------------------------
-# Hidden Admin Page (Token history)
-# -------------------------------------------------
-def page_token_history():
-    st.title("🔑 Token history (admin)")
-
-    st.markdown(
-        "This page shows all API tokens that have been used in this app "
-        "(current session and previous ones, as stored in SQLite)."
-    )
-
-    # Load from SQLite
-    df_db = load_token_log_df()
-
-    if df_db.empty:
-        st.info("No tokens have been logged yet.")
-        return
-
-    # Show last used token (from DB)
-    last_row = df_db.iloc[0]  # because we ordered DESC
-    last_token = last_row["token"]
-
-    st.subheader("Last used token")
-    st.code(last_token, language="")
-
-    st.subheader("Full token usage log (from SQLite)")
-    st.dataframe(df_db, use_container_width=True)
-
-    if st.button("Clear history (SQLite + session)"):
-        clear_token_log()
-        if "token_log" in st.session_state:
-            del st.session_state["token_log"]
-        if "last_token" in st.session_state:
-            del st.session_state["last_token"]
-        st.success("Token history cleared.")
-        st.rerun()
-
-    st.caption(
-        "Note: tokens are stored in a local SQLite file (tokens.db) and in memory for this session."
-    )
-
-
-# -------------------------------------------------
-# Entry point with hidden admin route
-# -------------------------------------------------
 def main():
     # Read query params
     params = st.query_params
