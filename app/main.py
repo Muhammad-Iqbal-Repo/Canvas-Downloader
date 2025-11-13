@@ -146,14 +146,11 @@ def page_downloader():
     api_url = st.text_input("Canvas URL", value="https://canvas.uts.edu.au")
     api_key = st.text_input("Canvas API Token", type="password")
 
-    # IMPORTANT: we do NOT display the token here.
-    # Only the secret admin page will show it.
-
     # Session state for courses
     if "courses" not in st.session_state:
         st.session_state.courses = None
 
-    # --- File type filters ---
+    # --- File type filters (SINGLE block, with keys) ---
     st.markdown("### File types to include")
     col1, col2 = st.columns(2)
 
@@ -161,23 +158,34 @@ def page_downloader():
         docs_cb = st.checkbox(
             "Documents (pdf, doc, docx, txt, rtf, ppt, pptx)",
             value=True,
+            key="ft_docs",
         )
         code_cb = st.checkbox(
             "Notebooks & code (ipynb, py)",
             value=True,
+            key="ft_code",
         )
 
     with col2:
         images_cb = st.checkbox(
             "Images (jpg, jpeg, png, gif)",
             value=True,
+            key="ft_images",
         )
         archives_cb = st.checkbox(
             "Archives (zip, rar, 7z, tar, gz)",
             value=False,
+            key="ft_archives",
         )
 
-    # build allowed_exts from checkboxes
+    # ✅ Option to combine HTML files per module
+    combine_html_cb = st.checkbox(
+        "Combine all HTML pages in each module into a single file",
+        value=False,
+        key="ft_combine_html",
+    )
+
+    # Build allowed_exts from the checkboxes
     allowed_exts: set[str] = set()
     if docs_cb:
         allowed_exts.update(
@@ -189,36 +197,6 @@ def page_downloader():
         allowed_exts.update({".jpg", ".jpeg", ".png", ".gif"})
     if archives_cb:
         allowed_exts.update({".zip", ".rar", ".7z", ".tar", ".gz"})
-        
-    # --- File type filters ---
-    st.markdown("### File types to include")
-    col1, col2 = st.columns(2)
-
-    with col1:
-        docs_cb = st.checkbox(
-            "Documents (pdf, doc, docx, txt, rtf, ppt, pptx)",
-            value=True,
-        )
-        code_cb = st.checkbox(
-            "Notebooks & code (ipynb, py)",
-            value=True,
-        )
-
-    with col2:
-        images_cb = st.checkbox(
-            "Images (jpg, jpeg, png, gif)",
-            value=True,
-        )
-        archives_cb = st.checkbox(
-            "Archives (zip, rar, 7z, tar, gz)",
-            value=False,
-        )
-
-    # ✅ NEW: option to combine HTML files per module
-    combine_html_cb = st.checkbox(
-        "Combine all HTML pages in each module into a single file",
-        value=False,
-    )
 
     # --- Load subjects button ---
     if st.button("🔄 Load subjects"):
@@ -229,10 +207,7 @@ def page_downloader():
                 courses = get_courses_list(api_url, api_key)
                 st.session_state.courses = courses
                 st.success(f"Loaded {len(courses)} subject(s).")
-
-                # Log token usage for loading subjects (full token)
                 log_token_usage("load_subjects", api_url, api_key)
-
             except Exception as e:
                 st.error(f"Failed to load subjects: {e}")
 
@@ -271,10 +246,8 @@ def page_downloader():
             st.error("Please select at least one file type to download.")
             return
 
-        # Log token usage for download (full token)
         log_token_usage("download_modules", api_url, api_key)
 
-        # temp directory for this download
         tmp_dir = tempfile.mkdtemp(prefix="canvas_dl_")
         tmp_path = Path(tmp_dir)
 
@@ -291,7 +264,6 @@ def page_downloader():
 
         st.info("Starting download... This may take a while depending on course size.")
 
-        # Run the downloader into the temp directory
         summaries = download_canvas_courses(
             api_url=api_url,
             api_key=api_key,
@@ -302,16 +274,14 @@ def page_downloader():
             allowed_exts=allowed_exts,
         )
 
-        # ✅ Optionally combine HTML files per module
+        # Optionally combine HTML files per module
         if combine_html_cb:
             combine_module_htmls(tmp_path)
 
-        # Create ZIP archive of the temp directory
-        zip_base = tmp_path  # base name without extension
+        zip_base = tmp_path
         zip_path_str = shutil.make_archive(str(zip_base), "zip", root_dir=tmp_path)
         zip_path = Path(zip_path_str)
 
-        # Read ZIP into memory for download button
         with zip_path.open("rb") as f:
             zip_bytes = f.read()
 
@@ -324,7 +294,6 @@ def page_downloader():
 
         st.success("Download is ready ✨")
 
-        # Show per-course summary table
         if summaries:
             df = pd.DataFrame(summaries)
             summary_placeholder.subheader("Per-course summary")
