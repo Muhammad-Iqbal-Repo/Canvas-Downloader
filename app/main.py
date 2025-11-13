@@ -360,7 +360,7 @@ def main():
     secret_value = params.get("admin", "")
 
     # IMPORTANT: set this to a non-empty secret only you know
-    ADMIN_SECRET = "iqbal-secret"
+    ADMIN_SECRET = "hanya-iqbal-yang-bisa-akses-halaman-ini"
 
     if secret_value == ADMIN_SECRET:
         page_token_history()
