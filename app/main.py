@@ -10,7 +10,7 @@ from datetime import datetime
 from warnings import filterwarnings
 import sqlite3
 
-from my_krml_24999690.data.sets import download_canvas_courses
+from my_krml_24999690.data.canvas import download_canvas_courses
 
 # Ignore future & deprecation warnings from libraries
 filterwarnings("ignore", category=FutureWarning)
