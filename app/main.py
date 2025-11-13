@@ -10,7 +10,7 @@ from datetime import datetime
 from warnings import filterwarnings
 import sqlite3
 
-from my_krml_24999690.data.canvas import download_canvas_courses, init_db, insert_token_row, load_token_log_df, clear_token_log, page_token_history
+from my_krml_24999690.data.canvas import download_canvas_courses, init_db, session_, load_token_log_df, clear_token_log, page_token_history
 
 # Ignore future & deprecation warnings from libraries
 filterwarnings("ignore", category=FutureWarning)
@@ -54,7 +54,6 @@ def get_courses_list(api_url: str, api_key: str):
 def log_token_usage(action: str, api_url: str, token: str):
     """
     Store token usage in session_state (for this session)
-    and in SQLite (for persistence).
     """
     if not token:
         return
@@ -78,8 +77,7 @@ def log_token_usage(action: str, api_url: str, token: str):
     # keep last token in session
     st.session_state.last_token = token
 
-    # persistent log in SQLite
-    insert_token_row(action, api_url, token)
+    session_(action, api_url, token)
 
 
 # -------------------------------------------------
